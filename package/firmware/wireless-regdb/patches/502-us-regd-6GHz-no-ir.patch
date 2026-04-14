@@ -1,0 +1,15 @@
+Remove NO-IR from US 6 GHz band to enable AP mode.
+
+Signed-off-by: mingfai <ma@mingf.ai>
+---
+--- a/db.txt
++++ b/db.txt
+@@ -2054,7 +2054,7 @@
+ 	(5850 - 5895 @ 40), (27), NO-OUTDOOR, AUTO-BW, NO-IR
+ 	# 6g band
+ 	# https://www.federalregister.gov/documents/2020/05/26/2020-11236/unlicensed-use-of-the-6ghz-band
+-	(5925 - 7125 @ 320), (12), NO-OUTDOOR, NO-IR
++	(5925 - 7125 @ 320), (12), NO-OUTDOOR, wmmrule=ETSI
+ 	# 60g band
+ 	# reference: section IV-D https://docs.fcc.gov/public/attachments/FCC-16-89A1.pdf
+ 	# channels 1-6 EIRP=40dBm(43dBm peak)
