@@ -1,0 +1,57 @@
+--- a/drivers/net/phy/mediatek/mtk-2p5ge.c	2026-04-15 00:15:11.979892695 +0800
++++ b/drivers/net/phy/mediatek/mtk-2p5ge.c	2026-04-15 00:16:17.419036984 +0800
+@@ -1,5 +1,6 @@
+ // SPDX-License-Identifier: GPL-2.0+
+ #include <linux/bitfield.h>
++#include <linux/delay.h>
+ #include <linux/firmware.h>
+ #include <linux/module.h>
+ #include <linux/nvmem-consumer.h>
+@@ -610,6 +611,31 @@
+ 	return RATE_MATCH_PAUSE;
+ }
+ 
++static int mt798x_2p5ge_phy_write_mmd(struct phy_device *phydev, int devnum,
++				       u16 regnum, u16 val)
++{
++	struct mii_bus *bus = phydev->mdio.bus;
++	int phy_addr = phydev->mdio.addr;
++	int ret;
++
++	/* Clause 45 indirect access via Clause 22 registers.
++	 * Bus lock is already held by the caller (__phy_write_mmd).
++	 */
++	__mdiobus_write(bus, phy_addr, MII_MMD_CTRL, devnum);
++	__mdiobus_write(bus, phy_addr, MII_MMD_DATA, regnum);
++	__mdiobus_write(bus, phy_addr, MII_MMD_CTRL,
++			devnum | MII_MMD_CTRL_NOINCR);
++	ret = __mdiobus_write(bus, phy_addr, MII_MMD_DATA, val);
++
++	/* The MT7988/MT7987 internal 2.5G PHY requires 7-8ms to process each
++	 * Clause 45 register write. Without this delay the PHY initializes
++	 * with corrupted registers and generates spurious TX Pause frames,
++	 * causing the link partner to stop sending traffic.
++	 */
++	usleep_range(7000, 8000);
++	return ret;
++}
++
+ static int mt798x_2p5ge_phy_probe(struct phy_device *phydev)
+ {
+ 	struct mtk_i2p5ge_phy_priv *priv;
+@@ -646,6 +672,7 @@
+ 		.config_init = mt798x_2p5ge_phy_config_init,
+ 		.config_aneg = mt798x_2p5ge_phy_config_aneg,
+ 		.get_features = mt798x_2p5ge_phy_get_features,
++		.write_mmd = mt798x_2p5ge_phy_write_mmd,
+ 		.read_status = mt798x_2p5ge_phy_read_status,
+ 		.get_rate_matching = mt798x_2p5ge_phy_get_rate_matching,
+ 		.suspend = genphy_suspend,
+@@ -660,6 +687,7 @@
+ 		.config_init = mt798x_2p5ge_phy_config_init,
+ 		.config_aneg = mt798x_2p5ge_phy_config_aneg,
+ 		.get_features = mt798x_2p5ge_phy_get_features,
++		.write_mmd = mt798x_2p5ge_phy_write_mmd,
+ 		.read_status = mt798x_2p5ge_phy_read_status,
+ 		.get_rate_matching = mt798x_2p5ge_phy_get_rate_matching,
+ 		.suspend = genphy_suspend,
