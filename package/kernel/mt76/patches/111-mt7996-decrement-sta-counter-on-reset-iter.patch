@@ -1,0 +1,39 @@
+From 1b26f5f63d42364dfd88ed885f7c6a5c961a9858 Mon Sep 17 00:00:00 2001
+From: Lorenzo Bianconi <lorenzo@kernel.org>
+Date: Sun, 8 Mar 2026 14:25:20 +0100
+Subject: [PATCH] wifi: mt76: mt7996: Decrement sta counter removing the link
+ in mt7996_mac_reset_sta_iter()
+
+Fixes tracking per-phy stations for offchannel switching.
+
+Fixes: ace5d3b6b49e8 ("wifi: mt76: mt7996: improve hardware restart reliability")
+Signed-off-by: Lorenzo Bianconi <lorenzo@kernel.org>
+Link: https://patch.msgid.link/20260308-mt7996_mac_reset_vif_iter-fix-v1-1-57f640aa2dcf@kernel.org
+Signed-off-by: Felix Fietkau <nbd@nbd.name>
+---
+ mt7996/mac.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index f7694faf2..369c3a9f1 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -2374,6 +2374,7 @@ mt7996_mac_reset_sta_iter(void *data, struct ieee80211_sta *sta)
+ 
+ 	for (i = 0; i < ARRAY_SIZE(msta->link); i++) {
+ 		struct mt7996_sta_link *msta_link = NULL;
++		struct mt7996_phy *phy;
+ 
+ 		msta_link = rcu_replace_pointer(msta->link[i], msta_link,
+ 						lockdep_is_held(&dev->mt76.mutex));
+@@ -2381,6 +2382,10 @@ mt7996_mac_reset_sta_iter(void *data, struct ieee80211_sta *sta)
+ 			continue;
+ 
+ 		mt7996_mac_sta_deinit_link(dev, msta_link);
++		phy = __mt7996_phy(dev, msta_link->wcid.phy_idx);
++		if (phy)
++			phy->mt76->num_sta--;
++
+ 		if (msta_link != &msta->deflink)
+ 			kfree_rcu(msta_link, rcu_head);
+ 	}
