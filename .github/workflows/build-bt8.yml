@@ -11,7 +11,6 @@ name: Build BT8 firmware
 on:
   push:
     branches: ['25.12.5-rebase']
-    paths-ignore: ['**.md']
   workflow_dispatch:
     inputs:
       release_tag:
