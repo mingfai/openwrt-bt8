@@ -1,0 +1,54 @@
+wifi: mt76: mt7996: harden NULL pointer checks in TX/RX paths
+
+Three NULL pointer dereference fixes:
+
+1. mt7996_mac_tx_free(): Add wcid validation after mt76_wcid_ptr().
+   The WLAN_ID from firmware TX free event can reference a station
+   that was already freed. Without this check, wcid_to_sta() and
+   subsequent rcu_dereference(sta->link[]) crash with a NULL deref
+   in NAPI RX poll context.
+
+2. mt7996_mac_sta_poll(): Add msta validation after extracting from
+   poll_list. If a station is removed between being added to the
+   poll list and being polled, msta_link->sta can be NULL.
+
+3. mt7996_tx_prepare_skb(): Add missing NULL check for sta pointer
+   before accessing sta->mlo in the EAPOL frame translation path.
+
+These fixes address intermittent kernel crashes under sustained
+high throughput reported in openwrt/openwrt#19638.
+
+Signed-off-by: mingfai <ma@mingf.ai>
+---
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -114,6 +114,9 @@
+ 		list_del_init(&wcid->poll_list);
+ 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
+
++		if (!msta || !wcid->sta)
++			continue;
++
+ 		idx = wcid->idx;
+
+ 		/* refresh peer's airtime reporting */
+@@ -1060,7 +1063,7 @@
+ 	 * compatible with 802.11 EAPOL frame, we do the translation by
+ 	 * software
+ 	 */
+-	if (tx_info->skb->protocol == cpu_to_be16(ETH_P_PAE) && sta->mlo) {
++	if (tx_info->skb->protocol == cpu_to_be16(ETH_P_PAE) && sta && sta->mlo) {
+ 		struct ieee80211_hdr *hdr = (void *)tx_info->skb->data;
+ 		struct ieee80211_bss_conf *link_conf;
+ 		struct ieee80211_link_sta *link_sta;
+@@ -1328,6 +1331,10 @@
+
+ 			idx = FIELD_GET(MT_TXFREE_INFO_WLAN_ID, info);
+ 			wcid = mt76_wcid_ptr(dev, idx);
++			if (!wcid || !wcid->sta) {
++				link_sta = NULL;
++				goto next;
++			}
+ 			sta = wcid_to_sta(wcid);
+ 			if (!sta) {
+ 				link_sta = NULL;
