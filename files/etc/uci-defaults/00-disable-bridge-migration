@@ -1,0 +1,25 @@
+#!/bin/sh
+# DEFENSIVE — runs FIRST on every boot (00 prefix sorts before 11_*).
+#
+# Removes /etc/uci-defaults/11_network-migrate-bridges before it can corrupt
+# the bridge config on sysupgrade-with-keep-config (-v).
+#
+# Background: openwrt 25.12.x ships a uci-defaults bridge migration script
+# that on rare config shapes rewrites `interface.lan.device` from `br-lan`
+# to a port name (`lan1` etc), breaking netifd's bridge creation. Symptom:
+# device boots green, all LAN ports silent. Root cause for our 2026-04-16
+# bt8b r8 sysupgrade incident. See:
+# http://lists.openwrt.org/pipermail/openwrt-devel/2021-May/035351.html
+#
+# Removing the migration script means future sysupgrades (-v or -n) cannot
+# trigger this bug. We rely on Ansible to manage /etc/config/network anyway,
+# so we don't need the migration helper.
+#
+# Returns 0 to be removed by the uci-defaults processor after running once.
+
+[ -f /etc/uci-defaults/11_network-migrate-bridges ] && {
+    rm -f /etc/uci-defaults/11_network-migrate-bridges
+    logger -t firstboot "Removed buggy 11_network-migrate-bridges per bake-in"
+}
+
+exit 0
