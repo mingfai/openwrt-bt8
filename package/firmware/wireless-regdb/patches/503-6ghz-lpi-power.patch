@@ -1,0 +1,35 @@
+Lift 6 GHz EIRP cap to LPI (Low Power Indoor) limits.
+
+The upstream wireless-regdb uses a conservative 12 dBm cap for the US 6 GHz
+entry and 14 dBm for HK. These figures are well below what FCC and HKCA 1081
+allow for indoor LPI operation. With the 12/14 dBm cap, real-world WiFi 7
+6 GHz throughput collapses on any non-trivial distance.
+
+FCC LPI (47 CFR 15.407) permits 5 dBm/MHz PSD for indoor APs. Per channel
+width that translates to:
+  80 MHz:  24 dBm EIRP
+  160 MHz: 27 dBm EIRP
+  320 MHz: 30 dBm EIRP
+
+HKCA 1081 permits 24 dBm EIRP indoor LPI in 5925-6425 MHz.
+
+cfg80211 enforces the regdb value as a ceiling. We set the ceiling to the
+FCC max (30 dBm), then UCI 'option txpower' caps per channel width.
+
+Signed-off-by: mingfai <ma@mingf.ai>
+Refreshed for wireless-regdb 2026.05.30 (r11): the HK hunk is dropped because
+upstream now ships HK 5945-6425 MHz at 24 dBm NO-OUTDOOR (HKCA 1081), so only
+the US LPI lift remains. Applies on top of 502 (NO-IR removed, wmmrule=ETSI).
+---
+--- a/db.txt
++++ b/db.txt
+@@ -2096,7 +2096,8 @@
+ 	(5850 - 5895 @ 40), (27), NO-OUTDOOR, AUTO-BW, NO-IR
+ 	# 6g band
+ 	# https://www.federalregister.gov/documents/2020/05/26/2020-11236/unlicensed-use-of-the-6ghz-band
+-	(5925 - 7125 @ 320), (12), NO-OUTDOOR, wmmrule=ETSI
++	# FCC LPI: 5 dBm/MHz PSD; cap = 30 dBm @ 320 MHz, set UCI txpower per BW
++	(5925 - 7125 @ 320), (30), NO-OUTDOOR, wmmrule=ETSI
+ 	# 60g band
+ 	# reference: section IV-D https://docs.fcc.gov/public/attachments/FCC-16-89A1.pdf
+ 	# channels 1-6 EIRP=40dBm(43dBm peak)
